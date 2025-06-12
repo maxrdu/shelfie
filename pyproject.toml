@@ -1,0 +1,17 @@
+[project]
+name = "shelfie"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { name = "Max Rausch-Dupont", email = "max@rausch-dupont.de" }
+]
+requires-python = ">=3.12"
+dependencies = []
+
+[project.scripts]
+shelfie = "shelfie:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
