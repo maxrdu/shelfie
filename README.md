@@ -2,9 +2,7 @@
 
 **Simple filesystem-based structured storage for data with metadata**
 
-Shelfie helps you organize your data files in a structured, hierarchical way while automatically managing metadata. 
-Think of it as a filing system that creates organized directories based on your data's characteristics and keeps 
-track of important information about each dataset.
+Shelfie helps you organize your data files in a structured, hierarchical way while automatically managing metadata. Think of it as a filing system that creates organized directories based on your data's characteristics and keeps track of important information about each dataset.
 
 ## 🎯 Why Shelfie?
 
@@ -18,6 +16,22 @@ Shelfie is meant to be an in between a full database and having to create a wrap
 each project.
 
 ## 🏗️ How It Works
+
+### **Conceptual Model: Database Relations → Directory Structure**
+
+Shelfie translates database-style relationships into filesystem organization:
+
+```
+Database Thinking          →    Filesystem Result
+─────────────────────────────────────────────────────
+Tables: [experiments]      →    Directory Level 1
+Tables: [models]           →    Directory Level 2  
+Tables: [dates]            →    Directory Level 3
+Columns: epochs, lr        →    metadata.json
+Data: results.csv          →    Attached files
+```
+
+### Visual Concept
 
 ```
 Root Directory
@@ -39,15 +53,31 @@ Root Directory
 └── experiment_2/
     └── ...
 ```
-Fields are more static attributes, while attributes are more specific based on the fields. You can think of each field
-having their own attributes. In other words, when using a database for each field you would probably create their own
-table.
 
 ### The Pattern
 
-1. **Fields** → Directory structure (experiment/model/date)
-2. **Attributes** → Metadata stored in JSON (learning_rate, epochs, etc.)
-3. **Data** → Files attached to each record (CSV, JSON, pickle, etc.)
+**Shelfie = Filesystem-Based Relational Design**
+
+1. **Fields** → Directory hierarchy (what you'd normalize into separate **tables**)
+2. **Attributes** → Stored metadata (what you'd store as **columns** in those tables)
+3. **Data** → Files attached to each record (the actual **data** your database would reference)
+4. **File Paths** → Automatically tracked as `filename_path__` in metadata
+
+**Traditional Database:**
+```sql
+SELECT r.accuracy, e.name, m.type, r.epochs 
+FROM results r
+JOIN experiments e ON r.experiment_id = e.id  
+JOIN models m ON r.model_id = m.id
+WHERE e.date = '2025-06-12'
+```
+
+**Shelfie Equivalent:**
+```python
+data = load_from_shelf("./experiments")
+results_df = data['results']  # Already has experiment, model, date columns!
+filtered = results_df[results_df['date'] == '2025-06-12']
+```
 
 ## 🚀 Quick Start
 
@@ -75,7 +105,7 @@ experiment = ml_shelf.create(
     experiment="baseline",
     model="mlp", 
     epochs=100,
-    learning_rate=0.01
+    learning_rate=0.001  # Typical learning rate for neural networks
 )
 
 # Attach your results
@@ -94,7 +124,7 @@ experiments/
 └── baseline/
     └── mlp/
         └── 2025-06-12/
-            ├── metadata.json  # {"epochs": 100, "learning_rate": 0.01}
+            ├── metadata.json  # {"epochs": 100, "learning_rate": 0.001, "results_path__": "/path/to/results.csv"}
             └── results.csv    # Your data
 ```
 
@@ -102,49 +132,60 @@ experiments/
 
 ### 1. ML Experiment Tracking
 
+**Think of this as three related database tables:**
+- `experiments` table → `project` field  
+- `models` table → `model_type` field
+- `runs` table → `date` field
+- Attributes: `dataset`, `hyperparams`, `notes`
+
 ```python
 from shelfie import Shelf, DateField, TimestampField
 import pandas as pd
 
-# Set up experiment tracking
+# Set up experiment tracking (defines your "table" relationships)
 experiments = Shelf(
     root="./ml_experiments",
-    fields=["project", "model_type", DateField("date")],
-    attributes=["dataset", "hyperparams", "notes"]
+    fields=["project", "model_type", DateField("date")],  # Your table hierarchy
+    attributes=["dataset", "hyperparams", "notes"]        # Your table columns
 )
 
 # Log different experiments
-rf_experiment = experiments.create(
+mlp_experiment = experiments.create(
     project="customer_churn",
-    model_type="random_forest",
+    model_type="mlp",
     dataset="v2_cleaned",
-    hyperparams={"n_estimators": 100, "max_depth": 10},
-    notes="Baseline model with feature engineering"
+    hyperparams={"hidden_layers": [128, 64, 32], "dropout": 0.3, "activation": "relu"},
+    notes="Multi-layer perceptron with dropout regularization"
 )
 
 # Attach multiple files
-rf_experiment.attach(train_results, "training_metrics.csv")
-rf_experiment.attach(test_results, "test_results.csv")
-rf_experiment.attach(feature_importance, "feature_importance.csv")
+mlp_experiment.attach(train_results, "training_metrics.csv")
+mlp_experiment.attach(test_results, "test_results.csv")
+mlp_experiment.attach(feature_importance, "feature_importance.csv")
 
 # Try a different model
-nn_experiment = experiments.create(
+cnn_experiment = experiments.create(
     project="customer_churn",
-    model_type="neural_network",
+    model_type="cnn",
     dataset="v2_cleaned", 
-    hyperparams={"layers": [64, 32, 16], "dropout": 0.2},
-    notes="Deep learning approach"
+    hyperparams={"filters": [32, 64, 128], "kernel_size": 3, "learning_rate": 0.0001},
+    notes="Convolutional neural network approach"
 )
 ```
 
 ### 2. Sales Data by Region and Time
 
+**Database equivalent:**
+- `regions` table → `region` field
+- `time_periods` table → `year`, `quarter` fields  
+- Attributes: `analyst`, `report_type`, `data_source`
+
 ```python
-# Organize sales data by geography and time
+# Organize sales data by geography and time (multi-table relationship)
 sales_shelf = Shelf(
     root="./sales_data",
-    fields=["region", "year", "quarter"],
-    attributes=["analyst", "report_type", "data_source"]
+    fields=["region", "year", "quarter"],                    # Geographic + temporal tables
+    attributes=["analyst", "report_type", "data_source"]     # Report metadata columns
 )
 
 # Store Q1 data for North America
@@ -168,12 +209,14 @@ na_q1.attach(sales_data, "quarterly_sales.csv")
 
 ### 3. Survey Data Organization
 
+**Database tables:** `survey_types` → `demographics` → `timestamps`
+
 ```python
 # Organize survey responses by type and demographics
 surveys = Shelf(
     root="./survey_data",
-    fields=["survey_type", "demographic", TimestampField("timestamp")],
-    attributes=["sample_size", "methodology", "response_rate"]
+    fields=["survey_type", "demographic", TimestampField("timestamp")],  # Survey taxonomy
+    attributes=["sample_size", "methodology", "response_rate"]            # Survey metadata
 )
 
 # Store customer satisfaction survey
@@ -196,7 +239,9 @@ survey.attach(responses, "responses.csv")
 
 ## 📊 Reading Your Data Back
 
-Use `load_from_shelf()` to read all data from a shelf:
+**The Magic: Automatic JOIN Operations**
+
+Unlike databases where you need explicit JOINs, Shelfie automatically combines your "table" relationships:
 
 ```python
 from shelfie import load_from_shelf
@@ -204,23 +249,32 @@ from shelfie import load_from_shelf
 # Load all data from experiments shelf
 data = load_from_shelf("./ml_experiments")
 
-# Returns a dictionary of DataFrames:
+# Returns a dictionary of DataFrames - like running multiple JOINed queries:
 # {
-#   'metadata': DataFrame with all metadata + field values,
-#   'training_metrics': Combined DataFrame from all training_metrics.csv files,
-#   'test_results': Combined DataFrame from all test_results.csv files,
+#   'metadata': All experiment metadata with project+model+date info,
+#   'training_metrics': Training data with experiment context automatically joined,
+#   'test_results': Test data with experiment context automatically joined,
 #   ...
 # }
 
-# Analyze all your experiments
+# Analyze all your experiments - no JOINs needed!
 print(data['metadata'])  # Overview of all experiments
-print(data['training_metrics'])  # All training metrics combined
+print(data['training_metrics'])  # All training metrics with full context
+
+# Note: File paths are stored as filename_path__ columns (e.g., 'training_metrics_path__')
 ```
 
+**What you get automatically:**
+- **Denormalized DataFrames**: Each CSV gets experiment+model+date columns added
+- **Full Context**: Every row knows its complete "relational" context  
+- **No JOIN complexity**: Relationships are already materialized
+- **Pandas-ready**: Immediate analysis without SQL knowledge
+
 Each DataFrame automatically includes:
-- All your original data columns
-- Metadata fields (hyperparams, notes, etc.)  
-- Directory structure fields (project, model_type, date)
+- **Original data columns**: Your actual data
+- **Attribute columns**: Metadata from your "table columns" (hyperparams, notes, etc.)  
+- **Field columns**: Directory structure as relational context (project, model_type, date)
+- **File path columns**: References as `filename_path__` columns
 
 ## 🛠️ Advanced Features
 
@@ -247,6 +301,7 @@ record = shelf.create(
     version="1.0"
 )
 # Creates: ./data/test_1/production/2025-06-12/2025-06-12_14-30-45/
+# Metadata includes: version_path__ for any attached files
 ```
 
 ### Multiple File Types
@@ -259,8 +314,6 @@ record.attach(trained_model, "model.pkl")          # Pickle
 record.attach(report_text, "summary.txt")          # Text
 ```
 
-By default only CSV files will be loaded, but the file paths of all other files are available.
-
 ### Loading Existing Shelves
 
 ```python
@@ -270,9 +323,9 @@ existing_shelf = Shelf.load_from_root("./experiments")
 # Continue adding to it
 new_experiment = existing_shelf.create(
     experiment="advanced",
-    model="xgboost",
-    epochs=200,
-    learning_rate=0.05
+    model="transformer",
+    epochs=50,
+    learning_rate=0.0001  # Lower learning rate for transformer models
 )
 ```
 
@@ -281,10 +334,10 @@ new_experiment = existing_shelf.create(
 ### Before Shelfie
 ```
 my_project/
-├── experiment1_rf_results.csv
-├── experiment1_rf_model.pkl  
-├── experiment2_nn_results.csv
-├── experiment2_nn_model.pkl
+├── experiment1_mlp_results.csv
+├── experiment1_mlp_model.pkl  
+├── experiment2_cnn_results.csv
+├── experiment2_cnn_model.pkl
 ├── baseline_test_data.csv
 ├── advanced_test_data.csv
 └── notes.txt  # Which file belongs to what?
@@ -296,21 +349,25 @@ my_project/
 ├── baseline/
 │   ├── mlp/
 │   │   └── 2025-06-12/
-│   │       ├── metadata.json      # {"epochs": 100, "lr": 0.01}
+│   │       ├── metadata.json      # {"epochs": 100, "lr": 0.001, "results_path__": "/path/results.csv"}
 │   │       ├── results.csv
 │   │       └── model.pkl
 │   └── cnn/
 │       └── 2025-06-12/
-│           ├── metadata.json      # {"epochs": 200, "lr": 0.001}
+│           ├── metadata.json      # {"epochs": 200, "lr": 0.0001, "results_path__": "/path/results.csv"}
 │           ├── results.csv
 │           └── model.pkl
 └── advanced/
-    └── xgboost/
+    └── transformer/
         └── 2025-06-12/
-            ├── metadata.json      # {"n_estimators": 500, "max_depth": 8}
+            ├── metadata.json      # {"epochs": 50, "lr": 0.0001, "results_path__": "/path/results.csv"}
             ├── results.csv
             └── model.pkl
 ```
+
+## 🤝 Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## 📄 License
 
