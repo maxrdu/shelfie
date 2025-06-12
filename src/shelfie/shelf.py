@@ -8,17 +8,17 @@ import numpy as np
 
 
 from .fields import Field
+from .data import write, read
 
 
 class StorageRecord:
     """Represents a single storage record with its path and metadata."""
 
     def __init__(
-        self, path: Path, metadata: Dict[str, Any], data_name: str, metadata_name: str
+        self, path: Path, metadata: Dict[str, Any], metadata_name: str
     ):
         self.path = path
         self.metadata = metadata
-        self.data_name = data_name
         self.metadata_name = metadata_name
 
         # Create directory and save metadata immediately upon creation
@@ -55,33 +55,51 @@ class StorageRecord:
             json.dump(serializable_metadata, f, indent=2, default=str)
 
         print(f"Created record at: {self.path}")
-
-    def save(self, data: pd.DataFrame):
-        """Save data CSV to the filesystem."""
-        if data is None:
-            raise ValueError("Data DataFrame is required")
-
-        data_path = self.path / f"{self.data_name}.csv"
-        if data_path.exists():
-            warnings.warn(
-                f"Data file already exists and will be overwritten: {data_path}"
-            )
-
-        data.to_csv(data_path, index=False)
-
-        print(f"Saved data to: {data_path}")
-        return self
+    
+    def attach(self, data, filename):
+        file = self.path / filename
+        write(data, file)
 
 
 class Shelf:
     """Simple filesystem-based structured storage for CSV files with metadata."""
+    @classmethod
+    def load_from_root(cls, root: str) -> "Shelf":
+        """
+        Load a Shelf instance from its root directory by reading the .shelfie.pkl file.
+        
+        Args:
+            root: Root directory containing the .shelfie.pkl file
+            
+        Returns:
+            Shelf instance
+        """
+        root_path = Path(root)
+        shelf_file = root_path / ".shelfie.pkl"
+        
+        if not shelf_file.exists():
+            raise FileNotFoundError(
+                f"No .shelfie.pkl file found in {root}. "
+                "Make sure this directory contains a valid shelf."
+            )
+        
+        try:
+            with open(shelf_file, "rb") as f:
+                shelf = pickle.load(f)
+            
+            # Update the root path in case the shelf was moved
+            shelf.root = root_path
+            return shelf
+            
+        except Exception as e:
+            raise RuntimeError(f"Could not load shelf from {shelf_file}: {e}")
+
 
     def __init__(
         self,
         root: str,
         fields: List[Union[str, Field]],
         attributes: List[str] = None,
-        data_name: str = "data",
         metadata_name: str = "metadata",
     ):
         """
@@ -110,7 +128,6 @@ class Shelf:
                 raise ValueError("Fields must be either strings or Field objects")
 
         self.attributes = attributes or []
-        self.data_name = data_name
         self.metadata_name = metadata_name
 
         # Create root directory if it doesn't exist
@@ -157,7 +174,6 @@ class Shelf:
         return StorageRecord(
             path=record_path,
             metadata=metadata,
-            data_name=self.data_name,
             metadata_name=self.metadata_name,
         )
 

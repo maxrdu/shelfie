@@ -10,7 +10,6 @@ if __name__ == "__main__":
         root="./experiments",
         fields=["experiment", "model", DateField("date")],
         attributes=["epochs", "learning_rate"],
-        data_name="results",
     )
 
     experiment = ml_storage.create(
@@ -21,8 +20,7 @@ if __name__ == "__main__":
     sales_storage = Shelf(
         root="./sales_data",
         fields=["region", "year", "quarter"],
-        attributes=["analyst", "report_type"],
-        data_name="sales",
+        attributes=["analyst", "report_type"]
     )
 
     sales_record = sales_storage.create(
@@ -38,7 +36,6 @@ if __name__ == "__main__":
         root="./surveys",
         fields=["survey_type", "demographic", TimestampField("timestamp")],
         attributes=["sample_size", "methodology"],
-        data_name="responses",
     )
 
     survey = survey_storage.create(
@@ -63,7 +60,7 @@ if __name__ == "__main__":
     )
 
     # Save only the results CSV
-    experiment.save(sample_results)
+    experiment.attach(sample_results, "data.csv")
 
     # Save sales data
     sales_data = pd.DataFrame(
@@ -74,4 +71,4 @@ if __name__ == "__main__":
         }
     )
 
-    sales_record.save(sales_data)
+    sales_record.attach(sales_data, "sales.csv")
