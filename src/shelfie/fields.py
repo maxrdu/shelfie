@@ -15,8 +15,13 @@ class Field:
             return provided_value
         elif self.default_factory is not None:
             return self.default_factory()
-        else:
+        elif self.default is not None:
             return self.default
+        else:
+            raise ValueError("Either a value must be provided or default or default_factory must be set for this field.")
+
+    def __str__(self):
+        return f"Field({self.name})"
 
 
 def _today():
