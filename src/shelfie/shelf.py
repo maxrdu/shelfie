@@ -55,12 +55,16 @@ class StorageRecord:
             json.dump(serializable_metadata, f, indent=2, default=str)
 
         print(f"Created record at: {self.path}")
-    
+
     def attach(self, data, filename):
+        """Attach data file to this record and track it in metadata."""
         file = self.path / filename
 
-        # Also save to metadata
-        self.metadata[file.stem] = file
+        # Store file path with a suffix to avoid namespace collision
+        # with dataframe keys in load_from_shelf
+        metadata_key = f"{file.stem}_path__"
+        self.metadata[metadata_key] = str(file.absolute())
+
         self._save_metadata()
         write(data, file)
 
