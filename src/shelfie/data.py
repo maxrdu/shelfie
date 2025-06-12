@@ -82,7 +82,7 @@ def write(data, file: pathlib.Path):
         wr.write(data, f)
 
 
-def read(data, file: pathlib.Path):
+def read(file: pathlib.Path):
     wr = _get_writer_reader(file)
     with open(file, wr.read_mode) as f:
-        wr.read(data, f)
+        wr.read(f)
