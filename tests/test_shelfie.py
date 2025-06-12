@@ -78,6 +78,18 @@ class TestShelfWrite(TestWithShelf):
         self.assertTrue(data_file.exists())
         self.assertTrue(data_file.is_file())
 
+    def test_data_path_saved_to_metadata(self):
+        self.record = self.shelf.create(a="A", other=[1, 2], attribute="test")
+        df = pd.DataFrame({
+            "A": [1, 2, 3],
+        })
+        self.record.attach(df, "data.csv")
+        data_file = self.test_dir / "A" / "B" / "dummy" / "data.csv"
+        metadata_file = self.test_dir / "A" / "B" / "dummy" / "metadata.json"
+        metadata = json.loads(metadata_file.read_text())
+
+        self.assertIn("data", metadata)
+        self.assertEqual(metadata["data"], str(data_file))
 
     def test_metadata_exists_warns(self):
         self.record = self.shelf.create(a="A", other=[1, 2], attribute="test")
@@ -121,7 +133,7 @@ class TestShelfRead(TestWithShelf):
 
         data = dfs["data"]
         self.assertEqual(len(data), 3)
-        self.assertListEqual(data.columns.tolist(), ["ColA", "ColB", "attribute", "a", "b", "c"])
+        self.assertListEqual(data.columns.tolist(), ["ColA", "ColB", "attribute", "data", "a", "b", "c"])
 
 
 

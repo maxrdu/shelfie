@@ -58,6 +58,10 @@ class StorageRecord:
     
     def attach(self, data, filename):
         file = self.path / filename
+
+        # Also save to metadata
+        self.metadata[file.stem] = file
+        self._save_metadata()
         write(data, file)
 
 
