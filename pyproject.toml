@@ -6,8 +6,11 @@ readme = "README.md"
 authors = [
     { name = "Max Rausch-Dupont", email = "max@rausch-dupont.de" }
 ]
-requires-python = ">=3.12"
-dependencies = []
+requires-python = ">=3.10"
+dependencies = [
+    "numpy>=2.2.6",
+    "pandas>=2.3.0",
+]
 
 [project.scripts]
 shelfie = "shelfie:main"
@@ -15,3 +18,8 @@ shelfie = "shelfie:main"
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+
+[dependency-groups]
+examples = [
+    "pandas>=2.3.0",
+]
