@@ -24,33 +24,37 @@ def load_from_shelf(root):
                     record_info[field_name] = path_part
                 
                 # List available files
-                csv_files = list(path.glob("*.csv"))
-                record_info['__csv_files'] = [f.name for f in csv_files]
+                record_info['__csv_files'] = [f.absolute() for f in path.glob("*.csv")]
                 
                 # Check for metadata
                 metadata_file = path / f"{shlf.metadata_name}.json"
-                record_info['__has_metadata'] = metadata_file.exists()
+
+                metadata = {}
+                if metadata_file.exists():
+                    with open(metadata_file, "r") as f:
+                        metadata = json.load(f)
+
+                record_info['__metadata'] = metadata
                 records.append(record_info)
 
 
     dataframes = defaultdict(list)
     for record in records:
 
-        csv_files = record.pop("__csv_file")
-        
-        metadata = None
-        if record.pop("__has_metadata"):
-            with open(f"{shlf.metadata_name}.json", "r") as f:
-                metadata = json.load(f)
+        csv_files = record.pop("__csv_files")
+        metadata = record.pop("__metadata")
 
         for csv_file in csv_files:
-            name = csv_files.stem
+            name = csv_file.stem
             data = pd.read_csv(csv_file)
 
-            if metadata:
-                for key, value in metadata.items():
-                    assert key not in data.columns
-                    data[key] = value
+            # Add all metadata fields
+            for key, value in metadata.items():
+                assert key not in data.columns, f"{key} already exists in the data ({csv_file})"
+                data[key] = value
+
+            for key, value in record.items():
+                assert key not in data.columns, f"{key} already exists in the data ({csv_file})"
 
             dataframes[name].append(data)
 
