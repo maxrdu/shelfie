@@ -6,7 +6,7 @@ import unittest
 
 import pandas as pd
 
-from shelfie import Shelf, Field
+from shelfie import Shelf, Field, load_from_shelf
 
 
 class TestWithTmpDir(unittest.TestCase):
@@ -89,6 +89,41 @@ class TestShelfWrite(TestWithShelf):
         self.shelf.create(a="A", other=[1, 2], attribute="test")
         shlf_file = self.test_dir / ".shelfie.pkl"
         self.assertTrue(shlf_file.exists())
+
+
+
+class TestShelfRead(TestWithShelf):
+    def setUp(self):
+        super().setUp()
+        self.record1 = self.shelf.create(a="A2", attribute="test1")
+        self.record2 = self.shelf.create(a="A2", b="B2", attribute="test2")
+
+    def test_read(self):
+        dfs = load_from_shelf(self.test_dir)
+
+        self.assertEqual(len(dfs), 1)
+        self.assertIn("metadata", dfs)
+
+        data = dfs["metadata"]
+        self.assertEqual(len(data), 2)
+        self.assertListEqual(data.columns.tolist(), ["attribute", "a", "b", "c"])
+
+    def test_read_data(self):
+        test_df = pd.DataFrame({"ColA": [1, 2, 3], "ColB": [4, 5, 6]})
+        self.record1.attach(
+            test_df, filename="data.csv"
+        )
+        dfs = load_from_shelf(self.test_dir)
+
+        self.assertEqual(len(dfs), 2)
+        self.assertIn("data", dfs)
+        self.assertIn("metadata", dfs)
+
+        data = dfs["data"]
+        self.assertEqual(len(data), 3)
+        self.assertListEqual(data.columns.tolist(), ["ColA", "ColB", "attribute", "a", "b", "c"])
+
+
 
 
 

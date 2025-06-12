@@ -1,3 +1,5 @@
+import warnings
+
 from .shelf import Shelf
 from .fields import Field, DateField, TimestampField
 
@@ -44,9 +46,18 @@ def load_from_shelf(root):
         csv_files = record.pop("__csv_files")
         metadata = record.pop("__metadata")
 
+        # Always save metadata
+        metadata_df = pd.Series(metadata).to_frame().T
+        records_df = pd.Series(record).to_frame().T
+        combined = pd.concat([metadata_df, records_df], axis=1)
+        dataframes['metadata'].append(combined)
+
+        if not csv_files:
+            warnings.warn(f"No csv files available for {record}.")
+
         for csv_file in csv_files:
             name = csv_file.stem
-            data = pd.read_csv(csv_file)
+            data = pd.read_csv(csv_file, index_col=0)
 
             # Add all metadata fields
             for key, value in metadata.items():
@@ -55,12 +66,13 @@ def load_from_shelf(root):
 
             for key, value in record.items():
                 assert key not in data.columns, f"{key} already exists in the data ({csv_file})"
+                data[key] = value
 
             dataframes[name].append(data)
 
     
     return {
-        k: pd.concat(dfs) for k, dfs in dataframes.items()
+        k: pd.concat(dfs, ignore_index=True) for k, dfs in dataframes.items()
     }
                 
         
