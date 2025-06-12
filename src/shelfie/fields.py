@@ -19,14 +19,19 @@ class Field:
             return self.default
 
 
+def _today():
+    return datetime.now().strftime("%Y-%m-%d")
+
+def _now():
+    return datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+
+
 # Convenience functions for common field types
-def DateField(name: str, format="%Y-%m-%d"):
+def DateField(name: str):
     """Field that defaults to today's date."""
-    return Field(name, default_factory=lambda: datetime.now().strftime(format))
+    return Field(name, default_factory=_today)
 
 
 def TimestampField(name: str):
     """Field that defaults to current timestamp."""
-    return Field(
-        name, default_factory=lambda: datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-    )
+    return Field(name, default_factory=_now)

@@ -1,4 +1,5 @@
 import json
+import pickle
 import warnings
 from pathlib import Path
 from typing import Any, Dict, List, Union
@@ -115,6 +116,12 @@ class Shelf:
         # Create root directory if it doesn't exist
         self.root.mkdir(parents=True, exist_ok=True)
 
+    def _save_shelf(self):
+        
+        shelf_file = self.root / ".shelfie.pkl"
+        with open(shelf_file, "wb") as f:
+            pickle.dump(self, f)
+
     def create(self, **kwargs) -> "StorageRecord":
         """
         Create a new storage record.
@@ -125,6 +132,9 @@ class Shelf:
         Returns:
             StorageRecord object
         """
+        # Save the fields and attributes associated with this file
+        self._save_shelf()
+
         # Separate fields from attributes
         field_values = {}
         metadata = {}
