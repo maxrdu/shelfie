@@ -160,12 +160,18 @@ class Shelf:
         for field_name in self.field_names:
             field_obj = self.fields[field_name]
             provided_value = kwargs.get(field_name)
+            # Returns provided value or default
             field_values[field_name] = field_obj.get_value(provided_value)
 
         # Process attributes (everything else goes to metadata)
         for key, value in kwargs.items():
             if key not in self.field_names:
                 metadata[key] = value
+
+        # make sure that every attribute is set
+        for attribute in self.attributes:
+            if attribute not in metadata:
+                raise ValueError(f"{attribute} is a required attribute but has not been provided.")
 
         # Build directory path from field values
         path_parts = [str(field_values[name]) for name in self.field_names]
